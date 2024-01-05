@@ -1,5 +1,5 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "generic/centos8"
+  config.vm.box = "generic/fedora39"
 
   VM_CPUS = 1
   VM_MEMORY = 2048
