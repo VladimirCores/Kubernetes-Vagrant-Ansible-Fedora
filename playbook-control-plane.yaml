@@ -1,0 +1,59 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - debug:
+        msg: 'executing on {{ inventory_hostname }}'
+    # - name: 1. Update system with DNF.
+        # ansible.builtin.dnf:
+        #   name: "*"
+        #   state: latest
+
+    # - name: 2.1. Disable swap - stop service.
+    #   command: systemctl stop swap-create@zram0
+
+    # - name: 2.2. Disable swap - remove zram.
+    #   command: dnf remove zram-generator-defaults
+
+    # - name: 2.3. Disable swap - Reboot
+    #   command: reboot now
+
+    # - name: 3. Disable the firewall.
+    #   command: systemctl stop firewalld.system
+    #   command: systemctl disable firewalld.system
+
+    - name: 4. Install iptables and iproute-tc.
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/dnf_module.html
+      # ansible.builtin.dnf:
+      #   name:
+      #   - iptables 
+      #   - iproute-tc
+      #   state: present
+
+    - name: 5. Configure IPv4 forwarding and bridge filters.
+      shell:
+        cmd: |
+          cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+          overlay
+          br_netfilter
+          EOF
+
+    - name: 6. Load the overlay and bridge filter modules.
+      command: modprobe overlay && modprobe br_netfilter
+
+    - name: 7. Add required sysctl parameters and persist.
+      shell:
+        cmd: |
+          cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+          EOF
+
+    - name: 8. Apply sysctl parameters without a reboot.
+      command: sysctl --system
+
+    - name: 9. Verify br_filter and overlay modules are loaded.
+      command: lsmod | grep br_netfilter && lsmod | grep overlay
